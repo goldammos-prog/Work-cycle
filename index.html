@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="theme-color" content="#ffffff">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="勤務サイクル">
+<link rel="manifest" href="manifest.json">
+<title>勤務サイクル</title>
+<style>
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0;background:#f4f5f7;color:#222;font-family:-apple-system,BlinkMacSystemFont,"Helvetica Neue","Hiragino Kaku Gothic ProN",Arial,sans-serif}
+body{min-height:100vh;padding-bottom:env(safe-area-inset-bottom)}
+button{font:inherit;cursor:pointer}
+.app{max-width:760px;margin:0 auto;background:#fff;min-height:100vh}
+header{position:sticky;top:0;z-index:10;background:#fff;border-bottom:1px solid #ddd;padding:calc(10px + env(safe-area-inset-top)) 12px 10px}
+.toolbar{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.toolbar button{border:0;background:#f0f1f3;border-radius:12px;padding:10px 13px;min-width:48px;min-height:44px}
+.title{font-size:20px;font-weight:700}
+.controls{display:flex;gap:8px;margin-top:9px}
+.controls button{flex:1;border:1px solid #ddd;background:#fff;border-radius:11px;padding:9px 6px;min-height:42px}
+.month{padding:12px}
+.week,.grid{display:grid;grid-template-columns:repeat(7,1fr)}
+.week div{text-align:center;font-size:12px;color:#666;padding:5px 0}
+.week div:first-child{color:#d33}.week div:last-child{color:#36c}
+.day{position:relative;min-height:78px;border:1px solid #eee;background:#fff;padding:5px;overflow:hidden}
+.day.empty{background:#fafafa}
+.day button.datebtn{display:block;width:100%;height:100%;min-height:68px;border:0;background:transparent;text-align:left;padding:2px;border-radius:10px}
+.day button.datebtn:active{background:#eef3ff}
+.num{font-size:14px;font-weight:600}
+.label{font-size:12px;margin-top:9px;font-weight:700}
+.work .label{color:#333}.off .label{color:#d22}.paid .label{color:#7b35c8}.overtime .label{color:#9a5b16}
+.paid{background:#faf4ff}.overtime{background:#fff8ed}
+.today{outline:2px solid #4a80ff;outline-offset:-2px}
+.changes{padding:0 12px 20px}
+.changes h3{font-size:15px;margin:10px 0}
+.change-row{display:flex;align-items:center;justify-content:space-between;gap:8px;border:1px solid #ddd;border-radius:10px;padding:9px 10px;margin:7px 0}
+.change-row button{border:0;background:#eee;border-radius:9px;padding:7px 10px}
+.help{font-size:12px;color:#666;line-height:1.6;padding:0 12px 20px}
+dialog{border:0;border-radius:18px;padding:0;width:min(92vw,420px);box-shadow:0 15px 50px #0004}
+dialog::backdrop{background:#0006}
+.modal{padding:20px}
+.modal h2{font-size:18px;margin:0 0 8px}
+.modal p{font-size:13px;color:#666;margin:0 0 16px}
+.action{width:100%;min-height:50px;border:0;border-radius:13px;background:#222;color:#fff;font-weight:700;margin-top:8px}
+.cancel{width:100%;min-height:46px;border:0;background:#eee;border-radius:13px;margin-top:8px}
+.settings{padding:12px;display:none}
+.settings label{display:block;font-size:13px;margin:10px 0 5px}
+.settings input{width:100%;padding:11px;border:1px solid #ccc;border-radius:10px;font-size:16px}
+.settings .save{margin-top:14px;width:100%;min-height:46px;border:0;border-radius:11px;background:#222;color:#fff}
+.install-note{background:#f2f7ff;border-radius:12px;padding:11px;margin:10px 12px;font-size:12px;line-height:1.55}
+@media(min-width:700px){.app{box-shadow:0 0 25px #0001}.day{min-height:92px}.day button.datebtn{min-height:82px}}
+</style>
+</head>
+<body>
+<div class="app">
+<header>
+  <div class="toolbar">
+    <button id="prev" aria-label="前の月">‹</button>
+    <div class="title" id="monthTitle"></div>
+    <button id="next" aria-label="次の月">›</button>
+  </div>
+  <div class="controls">
+    <button id="todayBtn">今月</button>
+    <button id="settingsBtn">設定</button>
+  </div>
+</header>
+
+<div class="install-note" id="installNote">
+  <b>ホーム画面に追加できます</b><br>
+  Safari：共有ボタン →「ホーム画面に追加」<br>
+  Chrome：共有 →「ホーム画面に追加」（表示される場合）
+</div>
+
+<section class="settings" id="settings">
+  <label>サイクル開始日</label>
+  <input id="startDate" type="date">
+  <label>勤務日数</label>
+  <input id="workDays" type="number" min="1" max="30">
+  <label>休み日数</label>
+  <input id="offDays" type="number" min="1" max="30">
+  <label>次の休みまでの勤務日数</label>
+  <input id="workDays2" type="number" min="1" max="30">
+  <label>次の休み日数</label>
+  <input id="offDays2" type="number" min="1" max="30">
+  <button class="save" id="saveSettings">保存</button>
+</section>
+
+<section class="month">
+  <div class="week"><div>日</div><div>月</div><div>火</div><div>水</div><div>木</div><div>金</div><div>土</div></div>
+  <div class="grid" id="calendar"></div>
+</section>
+
+<section class="changes">
+  <h3>変更一覧</h3>
+  <div id="changeList"></div>
+</section>
+<div class="help">日付をタップすると確認メニューが開きます。<br>勤務日→年休、休み→時間外。ボタンをもう一度押して確定する2段階操作です。サイクル本体は変わりません。</div>
+</div>
+
+<dialog id="dayDialog">
+  <div class="modal">
+    <h2 id="dialogTitle"></h2>
+    <p id="dialogText"></p>
+    <button class="action" id="dialogAction"></button>
+    <button class="cancel" id="dialogCancel">キャンセル</button>
+  </div>
+</dialog>
+
+<script>
+const KEY="workcycle_pwa_v5";
+const defaults={startDate:"2026-09-23",workDays:5,offDays:3,workDays2:5,offDays2:2,overrides:{}};
+let cfg=load();
+let view=new Date(); view.setDate(1);
+let selectedKey=null;
+
+function load(){
+  try{return {...defaults,...JSON.parse(localStorage.getItem(KEY)||"{}")}}catch(e){return {...defaults}}
+}
+function save(){localStorage.setItem(KEY,JSON.stringify(cfg))}
+function keyOf(d){return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")}
+function parseKey(k){const [y,m,d]=k.split("-").map(Number);return new Date(y,m-1,d)}
+function diffDays(a,b){return Math.floor((a-b)/86400000)}
+function baseType(k){
+  const d=parseKey(k), s=parseKey(cfg.startDate), n=diffDays(d,s);
+  if(n<0){ // extend cycle backwards
+    const len=+cfg.workDays+ +cfg.offDays+ +cfg.workDays2+ +cfg.offDays2;
+    const p=((n%len)+len)%len;
+    return p<cfg.workDays || p>=cfg.workDays+cfg.offDays && p<cfg.workDays+cfg.offDays+cfg.workDays2 ? "work":"off";
+  }
+  const len=+cfg.workDays+ +cfg.offDays+ +cfg.workDays2+ +cfg.offDays2;
+  const p=n%len;
+  return p<cfg.workDays || (p>=cfg.workDays+ +cfg.offDays && p<cfg.workDays+ +cfg.offDays+ +cfg.workDays2) ? "work":"off";
+}
+function shownType(k){
+  const b=baseType(k), o=cfg.overrides[k];
+  if(b==="off" && o==="work") return "overtime";
+  if(b==="work" && o==="off") return "paid";
+  return b;
+}
+function jpDate(k){const d=parseKey(k);return `${d.getMonth()+1}/${d.getDate()}`}
+function render(){
+  document.getElementById("monthTitle").textContent=`${view.getFullYear()}年${view.getMonth()+1}月`;
+  const cal=document.getElementById("calendar"); cal.innerHTML="";
+  const first=new Date(view.getFullYear(),view.getMonth(),1);
+  const last=new Date(view.getFullYear(),view.getMonth()+1,0);
+  for(let i=0;i<first.getDay();i++){const e=document.createElement("div");e.className="day empty";cal.appendChild(e)}
+  for(let n=1;n<=last.getDate();n++){
+    const d=new Date(view.getFullYear(),view.getMonth(),n), k=keyOf(d), t=shownType(k);
+    const cell=document.createElement("div");cell.className="day "+t;
+    if(k===keyOf(new Date()))cell.classList.add("today");
+    const b=document.createElement("button");b.className="datebtn";b.type="button";
+    b.innerHTML=`<div class="num">${n}</div><div class="label">${t==="work"?"勤務":t==="off"?"休み":t==="paid"?"年休":"時間外"}</div>`;
+    b.addEventListener("click",(ev)=>{ev.preventDefault();openDialog(k)});
+    cell.appendChild(b);cal.appendChild(cell);
+  }
+  renderChanges();
+}
+function renderChanges(){
+  const box=document.getElementById("changeList"); box.innerHTML="";
+  const entries=Object.entries(cfg.overrides).sort((a,b)=>a[0].localeCompare(b[0]));
+  if(!entries.length){box.innerHTML='<div style="font-size:13px;color:#777">変更はありません</div>';return}
+  entries.forEach(([k,v])=>{
+    const row=document.createElement("div");row.className="change-row";
+    const base=baseType(k);
+    const label=base==="off"?"休み → 時間外":"勤務 → 年休";
+    row.innerHTML=`<span>${jpDate(k)}　${label}</span>`;
+    const btn=document.createElement("button");btn.type="button";btn.textContent="解除";
+    btn.addEventListener("click",()=>{delete cfg.overrides[k];save();render()});
+    row.appendChild(btn);box.appendChild(row);
+  });
+}
+function openDialog(k){
+  selectedKey=k;
+  const dialog=document.getElementById("dayDialog");
+  const base=baseType(k), shown=shownType(k);
+  document.getElementById("dialogTitle").textContent=`${jpDate(k)} の変更`;
+  const action=document.getElementById("dialogAction");
+  action.onclick=null;
+  if(base==="off"){
+    if(shown==="overtime"){
+      document.getElementById("dialogText").textContent="現在は「時間外」に変更されています。";
+      action.textContent="時間外を解除";
+      action.onclick=()=>{delete cfg.overrides[k];save();dialog.close();render()};
+    }else{
+      document.getElementById("dialogText").textContent="通常は「休み」です。変更を確定すると「時間外」になります。";
+      action.textContent="時間外に変更";
+      action.onclick=()=>{cfg.overrides[k]="work";save();dialog.close();render()};
+    }
+  }else{
+    if(shown==="paid"){
+      document.getElementById("dialogText").textContent="現在は「年休」に変更されています。";
+      action.textContent="年休を解除";
+      action.onclick=()=>{delete cfg.overrides[k];save();dialog.close();render()};
+    }else{
+      document.getElementById("dialogText").textContent="通常は「勤務」です。変更を確定すると「年休」になります。";
+      action.textContent="年休に変更";
+      action.onclick=()=>{cfg.overrides[k]="off";save();dialog.close();render()};
+    }
+  }
+  if(typeof dialog.showModal==="function") dialog.showModal();
+  else alert(document.getElementById("dialogText").textContent);
+}
+document.getElementById("dialogCancel").addEventListener("click",()=>document.getElementById("dayDialog").close());
+document.getElementById("dayDialog").addEventListener("click",e=>{if(e.target===e.currentTarget)e.currentTarget.close()});
+document.getElementById("prev").addEventListener("click",()=>{view.setMonth(view.getMonth()-1);render()});
+document.getElementById("next").addEventListener("click",()=>{view.setMonth(view.getMonth()+1);render()});
+document.getElementById("todayBtn").addEventListener("click",()=>{view=new Date();view.setDate(1);render()});
+document.getElementById("settingsBtn").addEventListener("click",()=>{
+  const s=document.getElementById("settings");s.style.display=s.style.display==="block"?"none":"block";
+  document.getElementById("startDate").value=cfg.startDate;
+  document.getElementById("workDays").value=cfg.workDays;
+  document.getElementById("offDays").value=cfg.offDays;
+  document.getElementById("workDays2").value=cfg.workDays2;
+  document.getElementById("offDays2").value=cfg.offDays2;
+});
+document.getElementById("saveSettings").addEventListener("click",()=>{
+  cfg.startDate=document.getElementById("startDate").value||defaults.startDate;
+  cfg.workDays=+document.getElementById("workDays").value||5;
+  cfg.offDays=+document.getElementById("offDays").value||3;
+  cfg.workDays2=+document.getElementById("workDays2").value||5;
+  cfg.offDays2=+document.getElementById("offDays2").value||2;
+  save();render();document.getElementById("settings").style.display="none";
+});
+if("serviceWorker" in navigator){window.addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}))}
+render();
+</script>
+</body>
+</html>
